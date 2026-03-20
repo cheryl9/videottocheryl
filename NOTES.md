@@ -1,6 +1,7 @@
 What I found (root cause of each bug):
 
 Bug 1: Dead zone is never used.
+
 I read through the function. I noticed dz_half_w was calculated early on but I could not find it being used anywhere later, which suggested it was dead code. I then searched for where the dead zone check actually happened and found abs(dx) > 0 which would be true for any movement at all. The dead zone ratio (deadzone_ratio=0.10) and the computed dz_half_w or dz_half_h variables are computed but never compared against. This meant the dead zone had no effect. The crop window chased every tiny face movement, producing constant jitter instead of stable output.
 
 What I fixed:
