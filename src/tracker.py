@@ -139,6 +139,9 @@ def track_face_crop(
 
         if should_snap:
             scene_cut_frames.append(frame_idx)
+            crop_cx, crop_cy = clamp_crop(face[0], face[1])
+            per_frame.append((crop_cx, crop_cy))
+            continue
 
         face_x, face_y = face
 
@@ -146,8 +149,8 @@ def track_face_crop(
         dx = face_x - crop_cx
         dy = face_y - crop_cy
 
-        need_move_x = abs(dx) > 0
-        need_move_y = abs(dy) > 0
+        need_move_x = abs(dx) > dz_half_w
+        need_move_y = abs(dy) > dz_half_h
 
         if not need_move_x and not need_move_y:
             # Face within dead zone — hold position

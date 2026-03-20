@@ -29,12 +29,64 @@ def debounce_speaker_ids(speaker_track_ids, min_hold_frames=15):
     Returns:
         Same-length list with short flicker runs replaced by nearest stable ID.
         None segments are never modified.
-
-    Examples:
-        >>> debounce_speaker_ids([0]*50 + [1]*3 + [0]*50, min_hold_frames=10)
-        [0]*103  # The 3-frame speaker-1 segment is replaced by speaker 0
-
-        >>> debounce_speaker_ids([None]*10 + [0]*50, min_hold_frames=15)
-        [None]*10 + [0]*50  # None segments are untouched
     """
-    raise NotImplementedError("TODO: Implement this function — see docstring for spec")
+    if not speaker_track_ids:
+        return speaker_track_ids
+
+    # Run-length encode raw IDs into runs of [track_id, start, length]
+    runs = []
+    i = 0
+    while i < len(speaker_track_ids):
+        current = speaker_track_ids[i]
+        length = 1
+        while i + length < len(speaker_track_ids) and speaker_track_ids[i + length] == current:
+            length += 1
+        runs.append([current, i, length])
+        i += length
+
+    # Replace short non-None runs with surrounding stable ID
+    # Multiple passes handle cascading short segments
+    changed = True
+    while changed:
+        changed = False
+        for idx in range(len(runs)):
+            track_id, start, length = runs[idx]
+            if track_id is None:
+                continue  
+            if length >= min_hold_frames:
+                continue  
+
+            # Look backward for nearest non-None predecessor
+            prev_id = None
+            for p in range(idx - 1, -1, -1):
+                if runs[p][0] is not None:
+                    prev_id = runs[p][0]
+                    break
+
+            # Look forward for nearest stable non-None successor
+            next_id = None
+            for n in range(idx + 1, len(runs)):
+                if runs[n][0] is not None and runs[n][2] >= min_hold_frames:
+                    next_id = runs[n][0]
+                    break
+
+            replace_id = prev_id if prev_id is not None else next_id
+
+            if replace_id is not None and replace_id != track_id:
+                runs[idx][0] = replace_id
+                changed = True
+
+    # Merge adjacent runs that now have the same ID
+    merged = [runs[0]]
+    for run in runs[1:]:
+        if run[0] == merged[-1][0]:
+            merged[-1][2] += run[2]
+        else:
+            merged.append(run)
+
+    # Expand back to per-frame list
+    result = []
+    for track_id, start, length in merged:
+        result.extend([track_id] * length)
+
+    return result

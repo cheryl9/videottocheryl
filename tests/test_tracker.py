@@ -1,5 +1,7 @@
 """Basic tests for the face tracking module."""
 
+from itertools import count
+
 from src.tracker import track_face_crop
 
 
@@ -33,3 +35,35 @@ class TestTrackFaceCropBasics:
         assert compressed[0][0] == -1
         assert compressed[0][1] == -1
         assert compressed[0][2] == 3  # 3 no-face frames
+
+    def test_dead_zone(self):
+        """Face inside dead zone should not move crop"""
+        # Face starts centered, then moves slightly within dead zone
+        center_bbox = (310, 170, 330, 190)
+        tiny_shift = (312, 172, 332, 192) 
+
+        bboxes = [center_bbox] * 10 + [tiny_shift] * 10
+        compressed, scene_cuts = track_face_crop(bboxes, video_width = 640, video_height = 360, deadzone_ratio = 0.10)
+
+        assert len(compressed) == 1  # Only one segment since no movement
+
+    def test_scene_cut_snaps(self):
+        """At a scene boundary the crop should snap instead of smooth"""
+        # Face on left side, then immediately on right side 
+        left_face = [(100, 160, 140, 200)] * 10
+        right_face = [(500, 160, 540, 200)] * 10
+        bboxes = left_face + right_face
+        face_scenes = [(0, 9), (10, 19)]  # Scene cut between frame 9 and 10
+
+        compressed, scene_cuts = track_face_crop(
+            bboxes, video_width=640, video_height=360, face_scenes=face_scenes
+        )
+
+        # Scene cut should be detected at frame 10  
+        assert 10 in scene_cuts 
+        frame_osset = 0
+        for seg in compressed:
+            if frame_osset == 10:
+                assert seg[0] > 400
+                break
+            frame_osset += seg[2]
