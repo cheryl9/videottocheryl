@@ -18,7 +18,9 @@ Bug 2: Scene cut or speaker switch does not snap.
 Reading the code, I traced what happens when should_snap is True and noticed there was no continue or early exit. should_snap sets a flag and appends to a list. But there's no continue, early return, or else branch to prevent the smoothing block from executing. The snap is recorded but never applied. Hence I realised that when should_snap is True (scene boundary or speaker switch), the code records the frame in scene_cut_frames but then falls through to the same EMA smoothing path as normal movement. 
 
 What I fixed:
+
 // Added a hard snap
+
 if should_snap:
     scene_cut_frames.append(frame_idx)
     crop_cx, crop_cy = clamp_crop(face_x, face_y)
@@ -26,6 +28,7 @@ if should_snap:
     continue
 
 instead of 
+
 if should_snap:
     scene_cut_frames.append(frame_idx)
 
